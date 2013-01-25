@@ -1,0 +1,178 @@
+<?php
+/* *
+ * PHP飞信发送类VIP
+ */
+class PHPFetion {
+	/**
+	 * 发送者手机号
+	 * @var string
+	 */
+	protected $_mobile;
+	
+	/**
+	 * 飞信密码
+	 * @param string
+	 */
+	protected $_password;
+	
+	/**
+	 * Cookie字符串
+	 * @param string
+	 */
+	protected $_cookie = '';
+	/**
+	 * 构造函数
+	 * @param string $mobile 手机号(登录者)
+	 * @param string $password 飞信密码
+	 */
+	public function __construct($mobile, $password) {
+		if($mobile === '' || $password === '') {
+			return false;
+		}
+		
+		$this->_mobile = $mobile;
+		$this->_password = $password;
+		
+		$this->_login();
+	}
+	/**
+	 * 析构函数
+	 */
+	public function __destruct() {
+		$this->_logout();
+	}
+	/**
+	 * 登录
+	 * @return string
+	 */
+	protected function _login() {
+		$uri = '/im/login/inputpasssubmit1.action';
+		$data = 'm='.$this->_mobile.'&pass='.urlencode($this->_password).'&loginstatus=4';
+		
+		$result = $this->_postWithCookie($uri, $data);
+		
+		// 解析Cookie
+		preg_match_all('/.*?\r\nSet-Cookie: (.*?);.*?/si', $result, $matches);
+		if(isset($matches[1])) {
+			$this->_cookie = implode('; ', $matches[1]);
+		}
+
+		return $result;
+	}
+	/**
+	 * 向指定的手机号发送飞信
+	 * @param string $mobile 手机号(接收者)
+	 * @param string $message 短信内容
+	 * @return string
+	 */
+	public function send($mobile, $message) {
+		if($message === '') {
+			return '';
+		}
+
+		// 判断是给自己发还是给好友发
+		if($mobile == $this->_mobile) {
+			return $this->_toMyself($message);
+		} else {
+			$uid = $this->_getUid($mobile);
+			return $uid === '' ? '' : $this->_toUid($uid, $message);
+		}
+	}
+	/**
+	 * 获取飞信ID
+	 * @param string $mobile 手机号
+	 * @return string
+	 */
+	protected function _getUid($mobile) {
+		$uri = '/im/index/searchOtherInfoList.action';
+		$data = 'searchText='.$mobile;
+		
+		$result = $this->_postWithCookie($uri, $data);
+		// 匹配
+		preg_match('/toinputMsg\.action\?touserid=(\d+)/si', $result, $matches);
+		return isset($matches[1]) ? $matches[1] : 'fid not found';
+	}
+	//得到md5加密字符串
+	protected function _getstr($userid){
+		$urlmd5="/im/chat/toinputMsg.action?touserid=".$userid;
+		$md5id=$this->_postWithCookie($urlmd5,'');
+		preg_match('/<postfield name=\"csrfToken\" value=\"(.*)\"\/>/isU', $md5id, $matches);
+		return isset($matches[1]) ? $matches[1] : 'str not found';
+	}
+	
+	/**
+	 * 向好友发送飞信
+	 * @param string $uid 飞信ID
+	 * @param string $message 短信内容
+	 * @return string
+	 */
+	protected function _toUid($uid, $message) {
+		$uri = '/im/chat/sendMsg.action?touserid='.$uid;
+		$md5str=$this->_getstr($uid);
+		$data = 'msg='.urlencode($message).'&csrfToken='.$md5str;		
+		$result = $this->_postWithCookie($uri, $data);
+		if(strpos($result, '发送消息成功') || strpos($result, '短信发送成功')){return 'success';}else{return 'error';}
+	}
+	/**
+	 * 给自己发飞信
+	 * @param string $message
+	 * @return string
+	 */
+	protected function _toMyself($message) {
+		$uri = '/im/user/sendMsgToMyselfs.action';
+		$result = $this->_postWithCookie($uri, 'msg='.urlencode($message));
+		if(strpos($result, '发送消息成功') || strpos($result, '短信发送成功')){return 'success';}else{return 'error';}
+	}
+	//判断是否是好友
+	//若非好友，返回手机号，是好友，返回0.
+	public function checkfriend($mobile){
+		$uri="/im/index/searchOtherInfoList.action";
+		$htmlresult=$this->_postWithCookie($url,"searchText=".$mobile);
+		if(stristr($htmlresult,"已经是您的好友了"))
+		{$fetionnum=0;}else{$fetionnum=$mobile;}
+		return $fetionnum;
+	}
+	//添加好友
+	public function addfriend($fetionnum){
+		$addurl="/im/user/insertfriend3.action";
+		$post_data = "buddylist=0&nickname=&number=".$fetionnum."&type=1";
+		$text=$this->_postWithCookie($addurl,$post_data);
+        $matches=explode('value="',$text);
+        $value=explode('"',$matches[1]);$nickname=$value[0];
+		$post_data = "nickname=".$nickname."&buddylist=0&localName=&number=".$fetionnum."&type=1";
+		$addurl="/im/user/insertfriendsubmit.action";
+        $result=$this->_postWithCookie($addurl,$post_data);
+        if(strpos($result, '对方同意') || strpos($result, '发送成功')) {return 'success';}else{return 'error';}
+	}
+	/**
+	 * 退出飞信
+	 * @return string
+	 */
+	protected function _logout() {
+		$uri = '/im/index/logoutsubmit.action';
+		$result=$this->_postWithCookie($uri, '');
+		return $result;
+	}
+	
+	/**
+	 * 携带Cookie向f.10086.cn发送POST请求
+	 * @param string $uri
+	 * @param string $uri
+	 */
+	protected function _postWithCookie($uri, $data) {
+		$fp = fsockopen('f.10086.cn', 80);
+		fputs($fp, "POST $uri HTTP/1.1\r\n");
+		fputs($fp, "Host: f.10086.cn\r\n");
+		fputs($fp, "Cookie: {$this->_cookie}\r\n");
+		fputs($fp, "Content-Type: application/x-www-form-urlencoded\r\n");
+		fputs($fp, "Content-Length: ".strlen($data)."\r\n");
+		fputs($fp, "Connection: close\r\n\r\n");
+		fputs($fp, $data);
+		$result = '';
+		while(!feof($fp)) {
+			$result .= fgets($fp);
+		}
+		fclose($fp);
+		return $result;
+	}
+}
