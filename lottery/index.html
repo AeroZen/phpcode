@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>2012年博雅年度抽奖</title>
+<script src="js/swfobject.js" type="text/javascript"></script>
+<script src="js/jquery.min.js" type="text/javascript"></script>
+<script>
+var flashvars = {
+	phpurl:"http://192.168.103.45/lottery/json.php",
+	initial:"0"
+};
+var params = {
+	menu: "false",
+	scale: "noScale",
+	allowFullscreen: "true",
+	allowScriptAccess: "always",
+	bgcolor: "",
+	wmode: "window"
+};
+var attributes = {
+	id:"newyear"
+};
+swfobject.embedSWF("images/newyear.swf", "newyear", "100%", "100%", "10.0.0", "images/expressInstall.swf", flashvars, params, attributes);
+//控制動畫
+function getFlashMovieObject(movieName){
+	if (window.document[movieName]){
+		return window.document[movieName];
+	}else if (navigator.appName.indexOf("Microsoft")==-1){
+		if (document.embeds && document.embeds[movieName])
+			return document.embeds[movieName];
+	}else{
+		return document.getElementById(movieName);
+	}
+}
+(function () {
+	var fullScreenApi = {
+		supportsFullScren : false,
+		isFullScreen : function () {
+			return false;
+		},
+		requestFullScreen : function () {},
+		cancelFullScreen : function () {},
+		prefix : ''
+	}
+	browserPrefixes = 'webkit moz o ms khtml'.split(' ');
+	if (typeof document.cancelFullScreen != 'undefined') {
+		fullScreenApi.supportsFullScren = true
+	} else {
+		for (var i = 0, il = browserPrefixes.length; i < il; i++) {
+			fullScreenApi.prefix = browserPrefixes[i];
+			if (typeof document[fullScreenApi.prefix + 'CancelFullScreen'] != 'undefined') {
+				fullScreenApi.supportsFullScreen = true;
+				break;
+			}
+		}
+	}
+	if (fullScreenApi.supportsFullScreen) {
+		fullScreenApi.fullScreenEventName = fullScreenApi.prefix + 'fullscreenchange';
+		fullScreenApi.isFullScreen = function () {
+			switch (this.prefix) {
+			case '':
+				return document.fullScreen
+			case 'webkit':
+				return document.webkitIsFullScreen
+			default:
+				return document[this.prefix + 'FullScreen']
+			}
+		}
+		fullScreenApi.requestFullScreen = function (el) {
+			return (this.prefix === '') ? el.requestFullScreen() : el[this.prefix + 'RequestFullScreen']();
+		}
+		fullScreenApi.cancelFullScreen = function (el) {
+			return (this.prefix === '') ? el.cancelFullScreen() : el[this.prefix + 'CancelFullScreen']();
+		}
+	}
+	window.fullScreenApi = fullScreenApi;
+})() 
+
+</script>
+<style type="text/css">
+body{font:12px/1.5 Arial, Helvetica, sans-serif;}
+body,ul,li{margin:0; padding:0;}
+.newyear{text-align:center; height:768px; margin:auto}
+</style>
+</head>
+<body>
+<div>
+	<div class="newyear">
+		<div id="newyear">
+			<p>您的瀏覽器不支持FLASH播放,請下載FLASH播放器</p>
+			<p>
+				<a href="http://www.adobe.com/go/getflashplayer">
+					<img  src="http://www.adobe.com/images/shared/download_buttons/get_flash_player.gif" alt="Get Adobe Flash player" />
+				</a>
+			</p>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+var tempheight=window.screen.availHeight;
+$(".newyear").css("height",tempheight+"px");
+$(".newyear").css("width",(1024*(tempheight/768))+"px");;
+window.onload = function () {	
+	if (window.fullScreenApi.supportsFullScreen) {
+		var imgContainer = document.getElementsByTagName('div');
+		var imgsLen = imgContainer.length;
+		for (var i = 0; i < imgsLen; i++) {
+			imgContainer[i].addEventListener('click', function () {
+					if (!fullScreenApi.isFullScreen()) {
+						//this.style.lineHeight = window.screen.height + 'px';
+						window.fullScreenApi.requestFullScreen(this);
+						var tempheight=window.screen.availHeight;
+						$(".newyear").css("height",tempheight+"px");;
+						$(".newyear").css("width",(1024*(tempheight/768))+"px");;
+					} else {
+						window.fullScreenApi.cancelFullScreen(document)
+					}
+				}, true)
+		}
+	}
+}
+</script>
+</body>
+</html>
